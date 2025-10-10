@@ -14,13 +14,7 @@ export class FirebaseService implements OnModuleInit {
         const apps = admin.apps;
         if (!apps.length) {
             this.app = admin.initializeApp({
-                credential: admin.credential.cert({
-                    projectId: this.configService.get<string>('FIREBASE_PROJECT_ID'),
-                    privateKey: this.configService
-                        .get<string>('FIREBASE_PRIVATE_KEY')!
-                        .replace(/\\n/g, '\n'),
-                    clientEmail: this.configService.get<string>('FIREBASE_CLIENT_EMAIL'),
-                }),
+                credential: admin.credential.cert('firebase-service-account.json'),
             });
             console.log('✅ Firebase Admin initialized successfully');
         } else {
