@@ -1,6 +1,5 @@
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
@@ -108,15 +107,15 @@ export class NewsService {
     }
 
     // compound query: category +  role
-    // async getNewsByCategoryAndRole(category: string, role: string, limit = 5) {
-    //     const snapshot = await this.getCollection()
-    //         .where('category', '==', category)
-    //         .where('authorRole', '==', role)
-    //         .orderBy('createdAt', 'desc')
-    //         .limit(limit)
-    //         .get();
-    //     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // }
+    async getNewsByCategoryAndRole(category: string, role: string, limit = 5) {
+        const snapshot = await this.getCollection()
+            .where('category', '==', category)
+            .where('authorRole', '==', role)
+            .orderBy('createdAt', 'desc')
+            .limit(limit)
+            .get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
 
 
     // pagination with cursor
@@ -179,7 +178,4 @@ export class NewsService {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
-    // OR - Like query ( category or authorRole)
-    
-
-}
+}               

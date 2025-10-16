@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req, Query, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { FirebaseAuthGuard } from 'src/auth/guards/firebase-auth.guard';
@@ -25,47 +25,28 @@ export class NewsController {
         return this.newsService.createNews(dto, req.user);
     }
 
-    // @Get()
-    // async getAllNews() {
-    //     return this.newsService.getNews();
-    // }
-
-    // @Get(':id')
-    // async getNewsById(@Param('id') id: string) {
-    //     return this.newsService.getNewsById(id);
-    // }
-
-    @UseGuards(FirebaseAuthGuard, RolesGuard)
-    @Roles('admin', 'author')
-    @Patch(':id')
-    async updateNews(@Param('id') id: string, @Body() dto: UpdateNewsDto, @Req() req) {
-        return this.newsService.updateNews(id, dto, req.user);
-    }
-
-    @UseGuards(FirebaseAuthGuard, RolesGuard)
-    @Roles('admin', 'author')
-    @Delete(':id')
-    async deleteNews(@Param('id') id: string, @Req() req) {
-        return this.newsService.deleteNews(id, req.user);
+    @Get('all')
+    async getAllNews() {
+        return this.newsService.getNews();
     }
 
     // paginated news with optional cursor
-    // @Get()
-    // async list(
-    //     @Query('limit') limit: number,
-    //     @Query('startAfterId') startAfterId?: string
-    // ) {
-    //     return this.newsService.getPaginatedNews(Number(limit) || 10, startAfterId);
-    // }
+    @Get()
+    async list(
+        @Query('limit') limit: number,
+        @Query('startAfterId') startAfterId?: string
+    ) {
+        return this.newsService.getPaginatedNews(Number(limit) || 10, startAfterId);
+    }
 
     // compound query: category +  role
-    // @Get('category/:category/role/:role')
-    // async listByCategoryAndRole(
-    //     @Param('category') category: string,
-    //     @Param('role') role: string
-    // ) {
-    //     return this.newsService.getNewsByCategoryAndRole(category, role);
-    // }
+    @Get('category')
+    async listByCategoryAndRole(
+        @Query('category') category: string,
+        @Query('role') role: string
+    ) {
+        return this.newsService.getNewsByCategoryAndRole(category, role);
+    }
 
     // Array contains query for tags
     @Get('tag/:tag')
@@ -84,15 +65,6 @@ export class NewsController {
         return this.newsService.getNewsByDateRange(startDate, endDate);
     }
 
-    // OR-Like Query
-    @Get('category-or-role')
-    async listByCategoryOrRole(
-        @Param('category') category: string,
-        @Param('role') role: string
-    ) {
-        return this.newsService.getNewsByCategoryOrRole(category, role);
-    }
-
     // Transaction example: increment views
     @Patch(':id/views')
     async incrementViews(
@@ -103,11 +75,17 @@ export class NewsController {
     }
 
     // Subcollection: Add comment
+    @UseGuards(FirebaseAuthGuard, RolesGuard)
+    @Roles('admin', 'author', 'user')
     @Post(':id/add-comment')
     async addComment(
-        @Param('id') id: string, @Body('text') text: string, @Req() req
+        @Param('id') id: string,
+        @Body('text') text: string,
+        @Req() req
     ) {
-        return this.commentService.addComment(id, req.user.uid, text)
+        if (!req.user?.uid) throw new UnauthorizedException('User not authenticated');
+        if (!text) throw new BadRequestException('Comment text is required');
+        return this.commentService.addComment(id, req.user.uid, text);
     }
 
     // Subcollection: Get comments
@@ -117,6 +95,27 @@ export class NewsController {
     ) {
         return this.commentService.getComment(newsId);
     }
+
+    @Get(':id')
+    async getNewsById(@Param('id') id: string) {
+        return this.newsService.getNewsById(id);
+    }
+
+    // Update news
+    @UseGuards(FirebaseAuthGuard, RolesGuard)
+    @Roles('admin', 'author')
+    @Patch(':id')
+    async updateNews(@Param('id') id: string, @Body() dto: UpdateNewsDto, @Req() req) {
+        return this.newsService.updateNews(id, dto, req.user);
+    }
+
+    // delete news
+    @UseGuards(FirebaseAuthGuard, RolesGuard)
+    @Roles('admin', 'author')
+    @Delete(':id')
+    async deleteNews(@Param('id') id: string, @Req() req) {
+        return this.newsService.deleteNews(id, req.user);
+    } 
 
 }
 
