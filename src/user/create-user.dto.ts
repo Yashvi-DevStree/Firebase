@@ -1,5 +1,4 @@
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable prettier/prettier */
 // create-user.dto.ts
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';

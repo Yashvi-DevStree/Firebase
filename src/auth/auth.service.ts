@@ -1,116 +1,119 @@
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { FirebaseService } from 'src/firebase/firebase.service';
-import { RegisterDto } from './dto/register.dto';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
-import { url } from 'inspector';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
-@Injectable()        
+@Injectable()
 export class AuthService {
     constructor(private firebaseService: FirebaseService) { }
-    
-    // 🔹 Register user + send verification email
+
+    // ✅ Register user
     async registerUser(dto: RegisterDto) {
         const { name, email, password } = dto;
         const userRecord = await this.firebaseService.getAuth().createUser({
-            email, 
-            password,
-            displayName: name
-        })
-
-        // Generate email verification link
-        const actionCodeSettings = {
-            url: 'http://localhost:3000',
-            handleCodeInApp: true          //means link can be handled by your app (e.g., frontend).
-        }
-
-        const link = await this.firebaseService.getAuth().generateEmailVerificationLink(
             email,
-            actionCodeSettings
-        )
+            password,
+            displayName: name,
+        });
 
-        // send email using your mail service 
-        console.log('Verification link:', link)
+        // Default role = 'user'
+        await this.firebaseService
+            .getFirestore()
+            .collection('users')
+            .doc(userRecord.uid)
+            .set({
+                name,
+                email,
+                role: 'user',
+                createdAt: new Date(),
+            });
 
-        // Create Firestore user record
-        await this.firebaseService.getFirestore().collection('users').doc(userRecord.uid).set({
-            name, 
-            email, 
-            verified: false,
-            createdAt: new Date()
-        })
-
-        return { message: 'User created. Please verify your email', link };
+        return { message: 'User registered successfully' };
     }
 
-    // 🔹 Login user using Firebase 
+    // ✅ Login user
     async loginUser(dto: LoginDto) {
         const { email, password } = dto;
         try {
-            const firebaseApiKey = process.env.FIREBASE_API_KEY; // 🔑 from .env    
+            const firebaseApiKey = process.env.FIREBASE_API_KEY;
+
             const response = await axios.post(
                 `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseApiKey}`,
-                {
-                    email,
-                    password, 
-                    returnSecureToken: true           // Firebase returns idToken and refreshToken.
-                }
-            )
+                { email, password, returnSecureToken: true },
+            );
 
             const { idToken, refreshToken } = response.data;
+            const decoded = await admin.auth().verifyIdToken(idToken);
 
-            // Verify token using Admin SDK
-            const decodedtoken = await admin.auth().verifyIdToken(idToken);
-            if (!decodedtoken.email_verified) throw new UnauthorizedException('Please verify your email before logging in...')
-            
+            const userDoc = await this.firebaseService
+                .getFirestore()
+                .collection('users')
+                .doc(decoded.uid)
+                .get();
+
+            const userData = userDoc.data();
+
             return {
-                message: 'Login Successful',
+                message: 'Login successful',
                 idToken,
                 refreshToken,
-                email: decodedtoken.email,
-                uid: decodedtoken.uid
-            }
+                email: decoded.email,
+                uid: decoded.uid,
+                role: userData?.role || 'user',
+            };
         } catch (error) {
-            console.error('Login failed', error.response?.data || error.message);
+            throw new UnauthorizedException('Invalid email or password');
         }
     }
 
-    // 🔹 Check email verification status
-    async checkverification(uid: string) {
-        const user = await this.firebaseService.getAuth().getUser(uid);
-        if (!user.emailVerified) {
-            throw new UnauthorizedException("Email not verified");
-        }
-        return { message: "Email verified successfully" };
+    // ✅ Assign role (only admin)
+    async assignRole(email: string, role: string) {
+        const auth = this.firebaseService.getAuth();
+        const user = await auth.getUserByEmail(email);
+
+        await auth.setCustomUserClaims(user.uid, { role });
+        await this.firebaseService
+            .getFirestore()
+            .collection('users')
+            .doc(user.uid)
+            .update({ role });
+
+        return { message: `Role '${role}' assigned to ${email}` };
     }
 
-    // 🔹 Generate password reset link
+    // ✅ Refresh role (for /auth/me/refresh)
+    async refreshUserRole(idToken: string) {
+        const decoded = await admin.auth().verifyIdToken(idToken, true); // force refresh
+        const user = await this.firebaseService.getAuth().getUser(decoded.uid);
+
+        const role = user.customClaims?.role || 'user';
+        return {
+            uid: decoded.uid,
+            email: decoded.email,
+            role,
+            refreshed: true,
+        };
+    }
+
+    // ✅ Forgot password
     async sendPasswordReset(dto: ResetPasswordDto) {
         const actionCodeSettings = {
             url: 'http://localhost:3000',
-            handleCodeInApp: true
-        }
+            handleCodeInApp: true,
+        };
 
-        const link = await this.firebaseService.getAuth().generatePasswordResetLink(
-            dto.email,
-            actionCodeSettings
-        )
+        const link = await this.firebaseService
+            .getAuth()
+            .generatePasswordResetLink(dto.email, actionCodeSettings);
 
-        console.log('Reset link', link);
-        return { message: "Password reset email sent", link };
+        return { message: 'Password reset link generated', link };
     }
-
-    // 🔹 Re-authenticate user (via client token refresh)
-    async verifyReauthToken(idToken: string) {
-        const decode = await admin.auth().verifyIdToken(idToken, true);  // true = force refresh
-        return { uid: decode.uid, email: decode.email };
-    }
-}  
+}
