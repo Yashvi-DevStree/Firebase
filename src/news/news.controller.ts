@@ -30,10 +30,10 @@ export class NewsController {
     //     return this.newsService.getNews();
     // }
 
-    @Get(':id')
-    async getNewsById(@Param('id') id: string) {
-        return this.newsService.getNewsById(id);
-    }
+    // @Get(':id')
+    // async getNewsById(@Param('id') id: string) {
+    //     return this.newsService.getNewsById(id);
+    // }
 
     @UseGuards(FirebaseAuthGuard, RolesGuard)
     @Roles('admin', 'author')
@@ -50,22 +50,22 @@ export class NewsController {
     }
 
     // paginated news with optional cursor
-    @Get()
-    async list(
-        @Query('limit') limit: number,
-        @Query('startAfterId') startAfterId?: string
-    ) {
-        return this.newsService.getPaginatedNews(Number(limit) || 10, startAfterId);
-    }
+    // @Get()
+    // async list(
+    //     @Query('limit') limit: number,
+    //     @Query('startAfterId') startAfterId?: string
+    // ) {
+    //     return this.newsService.getPaginatedNews(Number(limit) || 10, startAfterId);
+    // }
 
     // compound query: category +  role
-    @Get('category/:category/role/:role')
-    async listByCategoryAndRole(
-        @Param('category') category: string,
-        @Param('role') role: string
-    ) {
-        return this.newsService.getNewsByCategoryAndRole(category, role);
-    }
+    // @Get('category/:category/role/:role')
+    // async listByCategoryAndRole(
+    //     @Param('category') category: string,
+    //     @Param('role') role: string
+    // ) {
+    //     return this.newsService.getNewsByCategoryAndRole(category, role);
+    // }
 
     // Array contains query for tags
     @Get('tag/:tag')
@@ -78,8 +78,8 @@ export class NewsController {
     // Date-range queries
     @Get('date-range')
     async getDateRange(
-        @Query('startDate') startDate: Date,
-        @Query('endDate') endDate: Date
+        @Query('startDate') startDate: string,
+        @Query('endDate') endDate: string
     ) {
         return this.newsService.getNewsByDateRange(startDate, endDate);
     }

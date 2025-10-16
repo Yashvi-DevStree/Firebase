@@ -108,15 +108,15 @@ export class NewsService {
     }
 
     // compound query: category +  role
-    async getNewsByCategoryAndRole(category: string, role: string, limit = 5) {
-        const snapshot = await this.getCollection()
-            .where('category', '==', category)
-            .where('authorRole', '==', role)
-            .orderBy('createdAt', 'desc')
-            .limit(limit)
-            .get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    }
+    // async getNewsByCategoryAndRole(category: string, role: string, limit = 5) {
+    //     const snapshot = await this.getCollection()
+    //         .where('category', '==', category)
+    //         .where('authorRole', '==', role)
+    //         .orderBy('createdAt', 'desc')
+    //         .limit(limit)
+    //         .get();
+    //     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // }
 
 
     // pagination with cursor
@@ -136,34 +136,50 @@ export class NewsService {
 
     // Array-contains query for tags
     async getNewsByTag(tag: string) {
-        const snapshot = await this.getCollection()
-            .where('tags', 'array-contains', tag)
-            .orderBy('createdAt', 'desc')
-            .get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        try {
+            const db = this.firebaseService.getFirestore();
+            const snapshot = await db
+                .collection('news')
+                .where('tags', 'array-contains', tag)
+                .get();
+
+            if (snapshot.empty) {
+                return []; // no news found with this tag
+            }
+
+            // Map Firestore documents to JS objects
+            const newsList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+            return newsList;
+        } catch (error) {
+            console.error('Error fetching news by tag:', error.message);
+            throw new Error('Failed to fetch news by tag'); // will be caught by ErrorInterceptor
+        }
     }
 
+
     // Date range query
-    async getNewsByDateRange(startDate: Date, endDate: Date) {
-        const snapshot = await this.getCollection()
-            .where('createdAt', '>=', startDate)
-            .where('createdAt', '<=', endDate)
-            .orderBy('createdAt', 'desc')
+    async getNewsByDateRange(startDate: string, endDate: string) {
+        const db = this.firebaseService.getFirestore();
+
+        const startTimestamp = admin.firestore.Timestamp.fromDate(new Date(startDate));
+        const endTimestamp = admin.firestore.Timestamp.fromDate(new Date(endDate));
+
+        const snapshot = await db
+            .collection('news')
+            .where('createdAt', '>=', startTimestamp)
+            .where('createdAt', '<=', endTimestamp)
             .get();
-        
+
+        if (snapshot.empty) return []; // no news in this range
+
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
     // OR - Like query ( category or authorRole)
-    async getNewsByCategoryOrRole(category: string, role: string) {
-        const byCategorySnap = await this.getCollection().where('category', '==', category).get();
-        const byRoleSnap = await this.getCollection().where('authorRole', '==', role).get();
-
-        const mergeDocs = new Map();
-        byCategorySnap.docs.forEach(doc => mergeDocs.set(doc.id, doc.data()));
-        byRoleSnap.docs.forEach(doc => mergeDocs.set(doc.id, doc.data()));
-
-        return Array.from(mergeDocs.entries()).map(([id, data]) => ({ id, ...data }));
-    }
+    
 
 }

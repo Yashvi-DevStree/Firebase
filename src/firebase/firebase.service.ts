@@ -20,7 +20,7 @@ export class FirebaseService implements OnModuleInit {
         } else {
             // Reuse existing default app
             this.app = admin.app();
-            console.log('ℹ️ Firebase Admin already initialized, using existing app');
+            console.log('ℹ️  Firebase Admin already initialized, using existing app');
         }
     }
 
