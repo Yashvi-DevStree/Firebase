@@ -21,16 +21,23 @@ export class NewsService {
     // Create news article
     async createNews(dto: CreateNewsDto, user: any) {
         if (!['author', 'admin'].includes(user.role)) throw new ForbiddenException('Forbidden resource');
+        const { imageUrl, ...newsData } = dto;
+        const newsRef = this.getCollection().doc();
 
-        const docRef = await this.getCollection().add({
-            ...dto,
+        const newNews = {
+            ...newsData,
+            imageUrl: imageUrl || null,
             authorId: user.uid,
             authorRole: user.role,
             createdAt: new Date(),
             updatedAt: new Date(),
-        });
+        }
 
-        return { id: docRef.id, ...dto };
+        await newsRef.set(newNews);
+        return {
+            message: 'News created successfully',
+            data: { id: newsRef.id, ...newNews }
+        };
     }
 
     async getNews() {

@@ -1,8 +1,9 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req, Query, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req, Query, UnauthorizedException, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { FirebaseAuthGuard } from 'src/auth/guards/firebase-auth.guard';
@@ -11,18 +12,34 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { CommentService } from './subcollection/comment.service';
 import { IncrementViewsDto } from './dto/increment-views.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { StorageService } from 'src/storage/storage.service';
 
 @Controller('news')
 export class NewsController {
     constructor(private readonly newsService: NewsService,
-        private readonly commentService: CommentService
+        private readonly commentService: CommentService,
+        private readonly storageService: StorageService
     ) { }
 
     @UseGuards(FirebaseAuthGuard, RolesGuard)
     @Roles('admin', 'author')
     @Post()
-    async createNews(@Body() dto: CreateNewsDto, @Req() req) {
-        return this.newsService.createNews(dto, req.user);
+    @UseInterceptors(FileInterceptor('image')) // 👈 handle image upload
+    async createNews(
+        @UploadedFile() file: Express.Multer.File,
+        @Body() dto: CreateNewsDto,
+        @Req() req
+    ) {
+        let imageUrl;
+
+        // Upload to Firebase Storage if image exists
+        if (file) {
+            imageUrl = await this.storageService.uploadFile(file);
+        }
+
+        // Create news in Firestore (including image URL)
+        return this.newsService.createNews({ ...dto, imageUrl }, req.user);
     }
 
     @Get('all')
@@ -112,7 +129,7 @@ export class NewsController {
     // delete news
     @UseGuards(FirebaseAuthGuard, RolesGuard)
     @Roles('admin', 'author')
-    @Delete(':id')
+    @Delete(':id')  
     async deleteNews(@Param('id') id: string, @Req() req) {
         return this.newsService.deleteNews(id, req.user);
     } 

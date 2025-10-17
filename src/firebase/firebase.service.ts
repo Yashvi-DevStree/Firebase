@@ -15,6 +15,7 @@ export class FirebaseService implements OnModuleInit {
         if (!apps.length) {
             this.app = admin.initializeApp({
                 credential: admin.credential.cert('firebase-service-account.json'),
+                storageBucket: 'your-app.appspot.com'     // ✅ if this line exists, Storage is ready
             });
             console.log('✅ Firebase Admin initialized successfully');
         } else {
@@ -33,6 +34,7 @@ export class FirebaseService implements OnModuleInit {
     }
 
     getStorage(): admin.storage.Storage {
+        // Returns the Storage instance. You can call .bucket() on it in your StorageService
         return admin.storage(this.app);
     }
 }
