@@ -9,7 +9,7 @@ import { FirebaseAuthGuard } from 'src/auth/guards/firebase-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UpdateNewsDto } from './dto/update-news.dto';
-import { CommentService } from './subcollection/comment.service';
+import { CommentService } from './subcollection/comments/comment.service';
 import { IncrementViewsDto } from './dto/increment-views.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -32,7 +32,7 @@ export class NewsController {
             filename: (req, file, callback) => {
                 const suffix = Date.now() + extname(file.originalname);
                 callback(null, `${suffix}`);
-            }    
+            }
         })
     }))
     async createNews(@UploadedFile() image: Express.Multer.File, @Body() dto: CreateNewsDto, @Req() req) {

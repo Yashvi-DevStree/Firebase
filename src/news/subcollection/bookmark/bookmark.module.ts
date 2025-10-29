@@ -8,4 +8,4 @@ import { FirebaseService } from 'src/firebase/firebase.service';
     providers: [BookmarkService, FirebaseService],
     controllers: [BookmarkController]
 })
-export class BookmarkModule {}
+export class BookmarkModule { }
