@@ -9,10 +9,11 @@ import { AuthModule } from './auth/auth.module';
 import { NewsModule } from './news/news.module';
 import { SeedModule } from './seed/seed.module';
 import { CommentModule } from './news/subcollection/comment.module';
-import { StorageController } from './storage/storage.controller';
 import { StorageService } from './storage/storage.service';
 import { StorageModule } from './storage/storage.module';
 import { FirebaseService } from './firebase/firebase.service';
+import { BookmarkService } from './news/subcollection/bookmark.service';
+import { BookmarkModule } from './news/subcollection/bookmark.module';
 
 @Module({
   imports: [
@@ -26,10 +27,11 @@ import { FirebaseService } from './firebase/firebase.service';
     AuthModule,
     NewsModule,
     CommentModule,
+    BookmarkModule,
     
     ],
-  controllers: [AppController, StorageController],
-  providers: [AppService, FirebaseService, StorageService],
+  controllers: [AppController],
+  providers: [AppService, FirebaseService, StorageService, BookmarkService],
 })
 export class AppModule {}
  

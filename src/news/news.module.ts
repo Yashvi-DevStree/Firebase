@@ -3,10 +3,10 @@ import { NewsService } from './news.service';
 import { NewsController } from './news.controller';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { CommentService } from './subcollection/comment.service';
-import { StorageService } from 'src/storage/storage.service';
+import { BookmarkService } from './subcollection/bookmark.service';
 
 @Module({
-  providers: [NewsService, FirebaseService, CommentService, StorageService],
+  providers: [NewsService, FirebaseService, CommentService, BookmarkService],
   controllers: [NewsController],
 })
 export class NewsModule {}

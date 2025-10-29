@@ -1,5 +1,4 @@
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
@@ -13,128 +12,119 @@ import { UpdateNewsDto } from './dto/update-news.dto';
 import { CommentService } from './subcollection/comment.service';
 import { IncrementViewsDto } from './dto/increment-views.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { StorageService } from 'src/storage/storage.service';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @Controller('news')
 export class NewsController {
-    constructor(private readonly newsService: NewsService,
+    constructor(
+        private readonly newsService: NewsService,
         private readonly commentService: CommentService,
-        private readonly storageService: StorageService
     ) { }
 
+    // 1️⃣ CREATE NEWS (with image upload)
     @UseGuards(FirebaseAuthGuard, RolesGuard)
     @Roles('admin', 'author')
     @Post()
-    @UseInterceptors(FileInterceptor('image')) // 👈 handle image upload
-    async createNews(
-        @UploadedFile() file: Express.Multer.File,
-        @Body() dto: CreateNewsDto,
-        @Req() req
-    ) {
-        let imageUrl;
-
-        // Upload to Firebase Storage if image exists
-        if (file) {
-            imageUrl = await this.storageService.uploadFile(file);
-        }
-
-        // Create news in Firestore (including image URL)
+    @UseInterceptors(FileInterceptor('image', {
+        storage: diskStorage({
+            destination: './uploads',
+            filename: (req, file, callback) => {
+                const suffix = Date.now() + extname(file.originalname);
+                callback(null, `${suffix}`);
+            }    
+        })
+    }))
+    async createNews(@UploadedFile() image: Express.Multer.File, @Body() dto: CreateNewsDto, @Req() req) {
+        const imageUrl = image ? `http://localhost:3000/uploads/${image.filename}` : undefined;
         return this.newsService.createNews({ ...dto, imageUrl }, req.user);
     }
 
+    // 3️⃣ FILTERING / LIST APIs
     @Get('all')
     async getAllNews() {
         return this.newsService.getNews();
     }
 
-    // paginated news with optional cursor
     @Get()
-    async list(
-        @Query('limit') limit: number,
-        @Query('startAfterId') startAfterId?: string
-    ) {
+    async list(@Query('limit') limit: number, @Query('startAfterId') startAfterId?: string) {
         return this.newsService.getPaginatedNews(Number(limit) || 10, startAfterId);
     }
 
-    // compound query: category +  role
     @Get('category')
-    async listByCategoryAndRole(
-        @Query('category') category: string,
-        @Query('role') role: string
-    ) {
+    async listByCategoryAndRole(@Query('category') category: string, @Query('role') role: string) {
         return this.newsService.getNewsByCategoryAndRole(category, role);
     }
 
-    // Array contains query for tags
     @Get('tag/:tag')
-    async listByTag(
-        @Param("tag") tag: string
-    ) {
-        return this.newsService.getNewsByTag(tag)
+    async listByTag(@Param("tag") tag: string) {
+        return this.newsService.getNewsByTag(tag);
     }
 
-    // Date-range queries
     @Get('date-range')
-    async getDateRange(
-        @Query('startDate') startDate: string,
-        @Query('endDate') endDate: string
-    ) {
+    async getDateRange(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
         return this.newsService.getNewsByDateRange(startDate, endDate);
     }
 
-    // Transaction example: increment views
-    @Patch(':id/views')
-    async incrementViews(
-        @Param('id') id: string,
-        @Body() dto: IncrementViewsDto
-    ) {
-        return this.newsService.IncrementView(id, dto);
-    }
-
-    // Subcollection: Add comment
+    // 4️⃣ COMMENTS (subcollection)
     @UseGuards(FirebaseAuthGuard, RolesGuard)
     @Roles('admin', 'author', 'user')
     @Post(':id/add-comment')
-    async addComment(
-        @Param('id') id: string,
-        @Body('text') text: string,
-        @Req() req
-    ) {
+    async addComment(@Param('id') id: string, @Body('text') text: string, @Req() req) {
         if (!req.user?.uid) throw new UnauthorizedException('User not authenticated');
         if (!text) throw new BadRequestException('Comment text is required');
         return this.commentService.addComment(id, req.user.uid, text);
     }
 
-    // Subcollection: Get comments
     @Get(':id/read-comments')
-    async getComment(
-        @Param('id') newsId: string
-    ) {
+    async getComment(@Param('id') newsId: string) {
         return this.commentService.getComment(newsId);
     }
 
+    // 5️⃣ INCREMENT VIEWS
+    @Patch(':id/views')
+    async incrementViews(@Param('id') id: string, @Body() dto: IncrementViewsDto) {
+        return this.newsService.IncrementView(id, dto);
+    }
+
+    // 6️⃣ GET / UPDATE / DELETE NEWS (keep at bottom)
     @Get(':id')
     async getNewsById(@Param('id') id: string) {
         return this.newsService.getNewsById(id);
     }
 
-    // Update news
     @UseGuards(FirebaseAuthGuard, RolesGuard)
     @Roles('admin', 'author')
     @Patch(':id')
-    async updateNews(@Param('id') id: string, @Body() dto: UpdateNewsDto, @Req() req) {
-        return this.newsService.updateNews(id, dto, req.user);
+    @UseInterceptors(
+        FileInterceptor('image', {
+            storage: diskStorage({
+                destination: './uploads',
+                filename: (req, file, cb) => {
+                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                    const ext = extname(file.originalname);
+                    cb(null, `news-${uniqueSuffix}${ext}`);
+                },
+            }),
+        }),
+    )
+    async updateNews(
+        @Param('id') id: string,
+        @UploadedFile() file: Express.Multer.File,
+        @Body() dto: UpdateNewsDto,
+        @Req() req: any,
+    ) {
+        return this.newsService.updateNews(id, dto, req.user, file);
     }
 
-    // delete news
+
     @UseGuards(FirebaseAuthGuard, RolesGuard)
     @Roles('admin', 'author')
-    @Delete(':id')  
+    @Delete(':id')
     async deleteNews(@Param('id') id: string, @Req() req) {
         return this.newsService.deleteNews(id, req.user);
-    } 
-
+    }
 }
 
 // {"email": "yashvi.author@gmail.com",
-//     "password": "yashvi.author@123"}
+//     "password": "yashvi.author@123"}         

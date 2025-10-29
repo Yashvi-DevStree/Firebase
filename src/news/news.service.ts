@@ -53,11 +53,11 @@ export class NewsService {
         return { id: doc.id, ...doc.data() };
     }
 
-    async updateNews(id: string, dto: UpdateNewsDto, user: any) {
+    async updateNews(id: string, dto: UpdateNewsDto, user: any, file?: Express.Multer.File) {
         const docRef = this.getCollection().doc(id);
         const doc = await docRef.get();
         if (!doc.exists) throw new NotFoundException("News not found");
-        
+
         const data = doc.data();
         if (!data) throw new NotFoundException('News data is undefined');
 
@@ -65,10 +65,25 @@ export class NewsService {
             throw new UnauthorizedException('Not authorized to update the news');
         }
 
-        const updatedData = { ...dto, updatedAt: new Date() };
+        // 🖼️ If image file is uploaded, generate or assign imageUrl
+        let imageUrl: string | undefined;
+        if (file) {
+            imageUrl = `http://localhost:3000/uploads/${file.filename}`;
+        } else if (dto.imageUrl) {
+            // If the request already provides an image URL
+            imageUrl = dto.imageUrl;
+        }
+
+        const updatedData = {
+            ...dto,
+            ...(imageUrl && { imageUrl }),
+            updatedAt: new Date()
+        };
+
         await docRef.update(updatedData);
         return { id, ...data, ...updatedData };
     }
+
 
     async deleteNews(id: string, user: any) {
         const docRef = this.getCollection().doc(id);
