@@ -1,40 +1,36 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 import * as admin from 'firebase-admin';
+import * as path from 'path';
+
+// ✅ Initialize Firebase globally — this runs before Nest DI
+if (!admin.apps.length) {
+    const serviceAccountPath = path.resolve(
+        __dirname,
+        '../../firebase-service-account.json'
+    );
+
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccountPath),
+        storageBucket: 'your-app.appspot.com',
+    });
+
+    console.log('✅ Firebase Admin initialized globally');
+} else {
+    console.log('ℹ️ Firebase Admin already initialized');
+}
 
 @Injectable()
-export class FirebaseService implements OnModuleInit {
-    private app: admin.app.App;
-
-    constructor(private configService: ConfigService) { }
-
-    onModuleInit() {
-        // Check if default app already exists
-        const apps = admin.apps;
-        if (!apps.length) {
-            this.app = admin.initializeApp({
-                credential: admin.credential.cert('firebase-service-account.json'),
-                storageBucket: 'your-app.appspot.com'     // ✅ if this line exists, Storage is ready
-            });
-            console.log('✅ Firebase Admin initialized successfully');
-        } else {
-            // Reuse existing default app
-            this.app = admin.app();
-            console.log('ℹ️  Firebase Admin already initialized, using existing app');
-        }
-    }
-
+export class FirebaseService {
     getAuth(): admin.auth.Auth {
-        return admin.auth(this.app);
+        return admin.auth();
     }
 
     getFirestore(): admin.firestore.Firestore {
-        return admin.firestore(this.app);
+        return admin.firestore();
     }
 
     getStorage(): admin.storage.Storage {
-        // Returns the Storage instance. You can call .bucket() on it in your StorageService
-        return admin.storage(this.app);
+        return admin.storage();
     }
 }
