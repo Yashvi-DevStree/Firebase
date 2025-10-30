@@ -16,6 +16,7 @@ import { BookmarkService } from './news/subcollection/bookmark/bookmark.service'
 import { BookmarkModule } from './news/subcollection/bookmark/bookmark.module';
 import { ReactionModule } from './news/subcollection/reaction/reaction.module';
 import { ReportModule } from './news/subcollection/report/report.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ReportModule } from './news/subcollection/report/report.module';
     BookmarkModule,
     ReactionModule,
     ReportModule,
+    AnalyticsModule,
 
   ],
   controllers: [AppController],
