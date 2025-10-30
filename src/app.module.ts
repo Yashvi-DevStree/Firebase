@@ -15,6 +15,7 @@ import { FirebaseService } from './firebase/firebase.service';
 import { BookmarkService } from './news/subcollection/bookmark/bookmark.service';
 import { BookmarkModule } from './news/subcollection/bookmark/bookmark.module';
 import { ReactionModule } from './news/subcollection/reaction/reaction.module';
+import { ReportModule } from './news/subcollection/report/report.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ReactionModule } from './news/subcollection/reaction/reaction.module';
     CommentModule,
     BookmarkModule,
     ReactionModule,
+    ReportModule,
 
   ],
   controllers: [AppController],
